@@ -171,13 +171,18 @@
             || document.querySelector('[id$="-help-menu"]')
             || document.querySelector('.docs-menubar .goog-menubar-button:last-child');
 
+        // Helper: attach click handlers with multiple event types for maximum compatibility
+        const attachClick = (el, handler) => {
+            el.addEventListener('click', (e) => { e.stopPropagation(); handler(); }, true);
+            el.addEventListener('mousedown', (e) => { if(e.button===0){e.stopImmediatePropagation(); e.preventDefault(); handler();} }, true);
+        };
+
         if (menuAnchor) {
             const btn = createMenuButton('Human-Typer', 'human-typer-button');
             const stop = createMenuButton('Stop', 'stop-button', true);
             stop.style.color = 'red';
-            // Use capture-phase mousedown so Google Docs can't swallow the event
-            btn.addEventListener('mousedown', (e) => { e.stopImmediatePropagation(); e.preventDefault(); handleHumanTyperClick(); }, true);
-            stop.addEventListener('mousedown', (e) => { e.stopImmediatePropagation(); e.preventDefault(); handleStopClick(); }, true);
+            attachClick(btn, handleHumanTyperClick);
+            attachClick(stop, handleStopClick);
             menuAnchor.parentNode.insertBefore(btn, menuAnchor);
             btn.parentNode.insertBefore(stop, btn.nextSibling);
             console.log('Human-Typer: injected into menu bar.');
@@ -186,15 +191,23 @@
             const btn = document.createElement('div');
             btn.id = 'human-typer-float-btn';
             btn.textContent = 'Human-Typer';
-            btn.addEventListener('mousedown', (e) => { e.stopImmediatePropagation(); e.preventDefault(); handleHumanTyperClick(); }, true);
+            attachClick(btn, handleHumanTyperClick);
             const stop = document.createElement('div');
             stop.id = 'human-typer-float-stop';
             stop.textContent = 'Stop';
-            stop.addEventListener('mousedown', (e) => { e.stopImmediatePropagation(); e.preventDefault(); handleStopClick(); }, true);
+            attachClick(stop, handleStopClick);
             document.body.appendChild(btn);
             document.body.appendChild(stop);
             console.log('Human-Typer: using floating fallback buttons.');
         }
+
+        // Keyboard shortcut: Ctrl+Shift+H to toggle overlay
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'H') {
+                e.preventDefault(); e.stopPropagation();
+                handleHumanTyperClick();
+            }
+        }, true);
     }
 
     function createMenuButton(text, id, hidden = false) {
@@ -214,13 +227,20 @@
     }
 
     function handleHumanTyperClick() {
+        console.log('Human-Typer: button clicked');
         if (typingInProgress) {
             const s = getStopButton();
             if (s) { s.style.opacity='0.5'; setTimeout(()=>s.style.opacity='1',150); setTimeout(()=>s.style.opacity='0.5',300); setTimeout(()=>s.style.opacity='1',450); }
             return;
         }
-        if (!overlayElement) showOverlay();
-        else overlayElement.style.display = 'flex';
+        try {
+            if (!overlayElement) showOverlay();
+            else overlayElement.style.display = 'flex';
+            console.log('Human-Typer: overlay should be visible now');
+        } catch(err) {
+            console.error('Human-Typer: showOverlay error', err);
+            alert('Human-Typer error: ' + err.message);
+        }
     }
 
     function handleStopClick() {
